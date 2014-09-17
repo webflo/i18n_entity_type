@@ -1,0 +1,6 @@
+name = Entity Type Translation
+description = Provides multilingual support for entity types and bundles.
+dependencies[] = i18n
+package = Multilingual - Internationalization
+core = 7.x
+

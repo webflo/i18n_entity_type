@@ -1,0 +1,118 @@
+<?php
+
+/**
+ * Identifies the generic entity type label.
+ */
+const ENTITY_TYPE_LABEL_GENERIC = 'generic';
+
+/**
+ * Identifies the indefinite singular entity type label.
+ */
+const ENTITY_TYPE_LABEL_SINGULAR = 'singular';
+
+/**
+ * Identifies the indefinite plural entity type label.
+ */
+const ENTITY_TYPE_LABEL_PLURAL = 'plural';
+
+/**
+ * Identifies the definite singular/plural (depending on the count given)
+ * entity type label.
+ */
+const ENTITY_TYPE_LABEL_COUNT = 'count';
+
+function i18n_entity_type_label($entity_type, $label_form = ENTITY_TYPE_LABEL_GENERIC, $count = NULL, $options = array()) {
+  $info = entity_get_info($entity_type);
+
+  switch ($label_form) {
+    case ENTITY_TYPE_LABEL_SINGULAR:
+      return i18n_string(implode(':', array('entity_type', $entity_type, 'label', ENTITY_TYPE_LABEL_SINGULAR)), $info['label_singular'], $options);
+      break;
+
+    case ENTITY_TYPE_LABEL_PLURAL:
+      return i18n_string(implode(':', array('entity_type', $entity_type, 'label', ENTITY_TYPE_LABEL_PLURAL)), $info['label_singular'], $options);
+      break;
+
+    case ENTITY_TYPE_LABEL_COUNT:
+      $singular = i18n_string(':', implode(array('entity_type', $entity_type, 'label', ENTITY_TYPE_LABEL_COUNT . '.singular')), $info['label_count']['singular']);
+      $plural = i18n_string(':', implode(array('entity_type', $entity_type, 'label', ENTITY_TYPE_LABEL_COUNT . '.plural')), $info['label_count']['plural']);
+      return i18n_format_plural($count, $singular, $plural, $options);
+      break;
+
+    case ENTITY_TYPE_LABEL_GENERIC:
+    default:
+    return i18n_string(implode(':', array('entity_type', $entity_type, 'label', ENTITY_TYPE_LABEL_GENERIC)), $info['label'], $options);
+      break;
+  }
+}
+
+function i18n_format_plural($count, $singular, $plural, array $args = array(), array $options = array()) {
+  $args['@count'] = $count;
+  if ($count == 1) {
+    return format_string($singular, $args, $options);
+  }
+
+  // Get the plural index through the gettext formula.
+  $index = (function_exists('locale_get_plural')) ? locale_get_plural($count, isset($options['langcode']) ? $options['langcode'] : NULL) : -1;
+  // If the index cannot be computed, use the plural as a fallback (which
+  // allows for most flexiblity with the replaceable @count value).
+  if ($index < 0) {
+    return format_string($plural, $args, $options);
+  }
+  else {
+    switch ($index) {
+      case "0":
+        return format_string($singular, $args, $options);
+      case "1":
+        return format_string($plural, $args, $options);
+      default:
+        unset($args['@count']);
+        $args['@count[' . $index . ']'] = $count;
+        return format_string(strtr($plural, array('@count' => '@count[' . $index . ']')), $args, $options);
+    }
+  }
+}
+
+/**
+ * Implements hook_i18n_string_info()
+ */
+function i18n_entity_type_i18n_string_info() {
+  $groups['entity_type'] = array(
+    'title' => t('Entity Type types'),
+    'description' => t('Entity type names, bundles, descriptions, help texts.'),
+    'list' => TRUE, // This group can list all strings
+  );
+  return $groups;
+}
+
+
+function i18n_entity_type_i18n_string_list($group) {
+  if ($group == 'entity_type') {
+    $info = entity_get_info();
+    $strings = array();
+
+    foreach ($info as $entity_type => $definition) {
+      if (!empty($definition['bundle of'])) {
+        continue;
+      }
+
+      $strings['entity_type'][$entity_type]['label'][ENTITY_TYPE_LABEL_GENERIC] = $definition['label'];
+      $strings['entity_type'][$entity_type]['label'][ENTITY_TYPE_LABEL_SINGULAR] = $definition['label'];
+      $strings['entity_type'][$entity_type]['label'][ENTITY_TYPE_LABEL_PLURAL] = $definition['label'];
+      $strings['entity_type'][$entity_type]['label'][ENTITY_TYPE_LABEL_COUNT . '.singular'] = $definition['label'];
+      $strings['entity_type'][$entity_type]['label'][ENTITY_TYPE_LABEL_COUNT . '.plural']= $definition['label'];
+
+      if (!empty($definition['bundles'])) {
+        foreach ($definition['bundles'] as $bundle => $bundle_definition) {
+          $strings['entity_type'][$entity_type]['bundle'][$bundle . '.label.' . ENTITY_TYPE_LABEL_GENERIC] = $bundle_definition['label'];
+          $strings['entity_type'][$entity_type]['bundle'][$bundle . '.label.' . ENTITY_TYPE_LABEL_SINGULAR] = $bundle_definition['label'];
+          $strings['entity_type'][$entity_type]['bundle'][$bundle . '.label.' . ENTITY_TYPE_LABEL_PLURAL] = $bundle_definition['label'];
+          $strings['entity_type'][$entity_type]['bundle'][$bundle . '.label.' . ENTITY_TYPE_LABEL_COUNT . '.singular'] = $bundle_definition['label'];
+          $strings['entity_type'][$entity_type]['bundle'][$bundle . '.label.' . ENTITY_TYPE_LABEL_COUNT . '.plural']= $bundle_definition['label'];
+        }
+      }
+    }
+
+    return $strings;
+  }
+}
